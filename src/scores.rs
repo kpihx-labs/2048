@@ -1,5 +1,6 @@
 use chrono::Local;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -22,25 +23,48 @@ impl HighScores {
     }
 }
 
+impl Default for HighScores {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn get_high_scores_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|mut path| {
-        path.push(".2048_high_scores.json");
-        path
-    })
+    dirs::data_local_dir().map(|path| path.join("2048").join("high-scores.json"))
+}
+
+fn get_legacy_high_scores_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|path| path.join(".2048_high_scores.json"))
 }
 
 pub fn load_high_scores() -> HighScores {
     if let Some(path) = get_high_scores_path() {
         if path.exists() {
-            let data = fs::read_to_string(path).unwrap_or_default();
-            return serde_json::from_str(&data).unwrap_or_else(|_| HighScores::new());
+            return read_high_scores(&path);
         }
     }
+
+    if let Some(path) = get_legacy_high_scores_path() {
+        if path.exists() {
+            let scores = read_high_scores(&path);
+            let _ = save_high_scores(&scores);
+            return scores;
+        }
+    }
+
     HighScores::new()
+}
+
+fn read_high_scores(path: &PathBuf) -> HighScores {
+    let data = fs::read_to_string(path).unwrap_or_default();
+    serde_json::from_str(&data).unwrap_or_default()
 }
 
 pub fn save_high_scores(high_scores: &HighScores) -> io::Result<()> {
     if let Some(path) = get_high_scores_path() {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         let data = serde_json::to_string_pretty(high_scores)?;
         fs::write(path, data)?;
     }
@@ -56,7 +80,7 @@ pub fn add_high_score(high_scores: &mut HighScores, score: u32, board: &[[u16; 4
     };
 
     high_scores.scores.push(new_score);
-    high_scores.scores.sort_by(|a, b| b.score.cmp(&a.score));
+    high_scores.scores.sort_by_key(|entry| Reverse(entry.score));
     high_scores.scores.truncate(10);
     save_high_scores(high_scores).unwrap_or_default();
 }

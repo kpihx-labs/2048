@@ -1,6 +1,2 @@
-*.pyc
-
-
-# Added by cargo
-
 /target
+*.pyc

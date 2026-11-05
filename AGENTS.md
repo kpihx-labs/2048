@@ -1,33 +1,28 @@
 # AGENTS.md
 
-This repository contains the snap packaging (and colocated YARF UI tests) for
-the **terminal-2048** snap, published by kenvandine.
+This repository is the KπX Labs fork of **terminal-2048**. It owns a native,
+responsive `2048` binary while preserving the upstream GPLv3 history and
+attribution.
 
-## Automated maintenance
+## Architecture
 
-This repository is maintained in part by the `automated-ken` fleet-maintenance
-system (https://github.com/kenvandine/automated-ken). Automated agents may:
-
-- Open pull requests bumping the packaged application/runtime version
-- Queue YARF UI test runs on a registered remote runner (real hardware polling the
-  automated-ken dashboard for jobs) against candidate/edge builds before promoting a
-  release
-- Review and comment on PRs, including AI-assisted screenshot review of UI test
-  results
+- `src/game/logic.rs` owns game state and moves.
+- `src/game/layout.rs` owns pure terminal geometry.
+- `src/game/display.rs` owns adaptive number labels.
+- `src/game/ui.rs` owns terminal lifecycle, input, and rendering.
+- `src/cli.rs` owns the public command-line contract.
+- `CONTRACT.md` is the behavioral source of truth.
 
 ## Tests
 
-YARF UI test suites belong under `tests/suite/` in this repository. They are
-executed by a registered remote runner (physical/real hardware enrolled with the
-automated-ken dashboard), which polls the dashboard for queued jobs, downloads/
-installs the target snap build, runs the YARF suite locally, and uploads
-screenshots/results directly back to the dashboard. No GitHub Actions workflow is
-involved in running tests.
+Run `make check`. New geometry or CLI behavior requires focused unit tests. Keep
+the original integration tests for movement rules. `tests/suite/` remains the
+optional real-terminal visual smoke layer.
 
 ## Conventions
 
-- Do not remove the `tests/suite/` directory; it is required for automated release
-  validation. There is no test-running GitHub Actions workflow in this repo by
-  design — tests run on a registered remote runner.
-- Redundant upstream-polling / sync-release workflows that duplicate automated-ken's
-  own version-bump automation should be removed to avoid conflicting/duplicate PRs.
+- Preserve the upstream GPLv3 license and provenance.
+- Keep `auto` responsive and presets deterministic.
+- Never hardcode a home path; use platform/XDG directory APIs.
+- Install locally through `make install` and push through `make push`.
+- Do not reintroduce Snap packaging in this fork.

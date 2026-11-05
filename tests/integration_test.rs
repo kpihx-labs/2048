@@ -5,12 +5,7 @@ fn test_move_left() {
     let mut game = GameLogic::new();
 
     // Test case 1: Simple merge
-    game.board = [
-        [2, 2, 0, 0],
-        [4, 0, 4, 0],
-        [8, 8, 8, 8],
-        [2, 4, 8, 16],
-    ];
+    game.board = [[2, 2, 0, 0], [4, 0, 4, 0], [8, 8, 8, 8], [2, 4, 8, 16]];
     game.score = 0;
     let moved = game.move_left();
     assert!(moved);
@@ -21,12 +16,7 @@ fn test_move_left() {
     assert_eq!(game.score, 4 + 8 + 16 + 16);
 
     // Test case 2: No move possible
-    game.board = [
-        [2, 4, 8, 16],
-        [16, 8, 4, 2],
-        [2, 4, 8, 16],
-        [16, 8, 4, 2],
-    ];
+    game.board = [[2, 4, 8, 16], [16, 8, 4, 2], [2, 4, 8, 16], [16, 8, 4, 2]];
     let moved = game.move_left();
     assert!(!moved);
 }
@@ -34,12 +24,7 @@ fn test_move_left() {
 #[test]
 fn test_move_right() {
     let mut game = GameLogic::new();
-    game.board = [
-        [2, 2, 0, 0],
-        [4, 0, 4, 0],
-        [8, 8, 8, 8],
-        [16, 8, 4, 2],
-    ];
+    game.board = [[2, 2, 0, 0], [4, 0, 4, 0], [8, 8, 8, 8], [16, 8, 4, 2]];
     game.score = 0;
     let moved = game.move_right();
     assert!(moved);
@@ -53,21 +38,11 @@ fn test_move_right() {
 #[test]
 fn test_move_up() {
     let mut game = GameLogic::new();
-    game.board = [
-        [2, 4, 8, 16],
-        [2, 4, 8, 16],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ];
+    game.board = [[2, 4, 8, 16], [2, 4, 8, 16], [0, 0, 0, 0], [0, 0, 0, 0]];
     game.score = 0;
     let moved = game.move_up();
     assert!(moved);
-    let expected_board = [
-        [4, 8, 16, 32],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ];
+    let expected_board = [[4, 8, 16, 32], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     assert_eq!(game.board, expected_board);
     assert_eq!(game.score, 4 + 8 + 16 + 32);
 }
@@ -75,21 +50,11 @@ fn test_move_up() {
 #[test]
 fn test_move_down() {
     let mut game = GameLogic::new();
-    game.board = [
-        [2, 4, 8, 16],
-        [2, 4, 8, 16],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ];
+    game.board = [[2, 4, 8, 16], [2, 4, 8, 16], [0, 0, 0, 0], [0, 0, 0, 0]];
     game.score = 0;
     let moved = game.move_down();
     assert!(moved);
-    let expected_board = [
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [4, 8, 16, 32],
-    ];
+    let expected_board = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [4, 8, 16, 32]];
     assert_eq!(game.board, expected_board);
     assert_eq!(game.score, 4 + 8 + 16 + 32);
 }
@@ -117,12 +82,7 @@ fn test_can_move() {
 #[test]
 fn test_win_scenario() {
     let mut game = GameLogic::new();
-    game.board = [
-        [1024, 1024, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ];
+    game.board = [[1024, 1024, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     game.score = 0;
     game.won = false;
 
@@ -137,22 +97,29 @@ fn test_win_scenario() {
 #[test]
 fn test_game_over_scenario() {
     let mut game = GameLogic::new();
-    game.board = [
-        [2, 4, 8, 16],
-        [16, 8, 4, 2],
-        [2, 4, 8, 16],
-        [16, 8, 4, 2],
-    ];
+    game.board = [[2, 4, 8, 16], [16, 8, 4, 2], [2, 4, 8, 16], [16, 8, 4, 2]];
 
     assert!(!game.can_move(), "Game should be over (no moves possible)");
 
     let board_before = game.board;
     game.move_left();
-    assert_eq!(game.board, board_before, "Board should not change after a move when game is over");
+    assert_eq!(
+        game.board, board_before,
+        "Board should not change after a move when game is over"
+    );
     game.move_right();
-    assert_eq!(game.board, board_before, "Board should not change after a move when game is over");
+    assert_eq!(
+        game.board, board_before,
+        "Board should not change after a move when game is over"
+    );
     game.move_up();
-    assert_eq!(game.board, board_before, "Board should not change after a move when game is over");
+    assert_eq!(
+        game.board, board_before,
+        "Board should not change after a move when game is over"
+    );
     game.move_down();
-    assert_eq!(game.board, board_before, "Board should not change after a move when game is over");
+    assert_eq!(
+        game.board, board_before,
+        "Board should not change after a move when game is over"
+    );
 }

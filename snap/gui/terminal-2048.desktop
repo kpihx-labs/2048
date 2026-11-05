@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=Terminal 2048
-Exec=terminal-2048
-Icon=terminal-2048
-Icon=${SNAP}/meta/gui/terminal-2048.png
-Terminal=true
-Type=Application
-Categories=Game;

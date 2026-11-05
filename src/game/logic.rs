@@ -32,7 +32,11 @@ impl GameLogic {
         }
 
         if let Some(&(r, c)) = empty_cells.get(rand::thread_rng().gen_range(0..empty_cells.len())) {
-            self.board[r][c] = if rand::thread_rng().gen_bool(0.9) { 2 } else { 4 };
+            self.board[r][c] = if rand::thread_rng().gen_bool(0.9) {
+                2
+            } else {
+                4
+            };
         }
     }
 
@@ -49,7 +53,9 @@ impl GameLogic {
                     skip = false;
                     continue;
                 }
-                if j < row_without_zeros.len() - 1 && row_without_zeros[j] == row_without_zeros[j + 1] {
+                if j < row_without_zeros.len() - 1
+                    && row_without_zeros[j] == row_without_zeros[j + 1]
+                {
                     let new_tile = row_without_zeros[j] * 2;
                     merged_row.push(new_tile);
                     self.score += new_tile as u32;
@@ -128,5 +134,11 @@ impl GameLogic {
             }
         }
         false
+    }
+}
+
+impl Default for GameLogic {
+    fn default() -> Self {
+        Self::new()
     }
 }

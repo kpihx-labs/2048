@@ -42,7 +42,8 @@ tag: check  ## Create the annotated tag matching Cargo.toml
 	git tag -a "v$$version" -m "2048 $$version"
 
 push-tags:  ## Push release tags to GitHub and GitLab
-	@for remote in github gitlab; do git push "$$remote" --tags; done
+	@version="$$(perl -ne 'print $$1 if /^version = "([^"]+)"/' Cargo.toml)"; \
+	for remote in github gitlab; do git push "$$remote" "refs/tags/v$$version"; done
 
 release: check push tag push-tags  ## Check, push, tag, and publish the release refs
 

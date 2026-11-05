@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 - 2026-11-05
+
+- Replace the hand-authored three-row digit matrices with the maintained `tui-big-text` renderer and its tested 8x8 font.
+- Select full-pixel or Unicode-quadrant glyphs automatically from the available tile geometry, with clipping-safe plain-number fallback.
+- Cover `2`, `128`, `1024`, and `2048` across split-pane and tall-tile rendering tests.
+- Derive CLI version output directly from the Cargo package version.
+
 ## 1.0.0 - 2026-11-05
 
 - Fork the upstream GPLv3 terminal game into `kpihx-labs/2048` while preserving history and attribution.

@@ -8,7 +8,7 @@ This repository is a GPLv3 fork of [Ken VanDine's terminal-2048](https://github.
 
 - Responsive layout fills the current terminal or tmux pane.
 - Live redraw on terminal resize.
-- Large block numerals when tiles have enough room.
+- High-quality adaptive pixel numerals powered by `tui-big-text` and its tested 8x8 font.
 - Five layout modes: `auto`, `compact`, `balanced`, `large`, and `manual`.
 - Explicit manual tile width and height.
 - Native `2048` binary, independent of Snap.
@@ -56,7 +56,7 @@ The default `auto` mode uses all safe space available in the current terminal. A
 |---|---|
 | `auto` | Recalculates tile dimensions from the current terminal size. |
 | `compact` | Fixed `5x1` tiles for very small panes. |
-| `balanced` | Fixed `11x3` tiles with large numerals. |
+| `balanced` | Fixed `11x3` tiles with centered numerals. |
 | `large` | Fixed `17x5` tiles for roomy terminals. |
 | `manual` | Requires both `--tile-width` and `--tile-height`. |
 
@@ -88,7 +88,7 @@ make help
 make check
 ```
 
-The render geometry is pure and tested independently from the terminal backend. Tests cover auto growth, split-pane dimensions, manual dimensions, minimum-size errors, CLI validation, large numerals, tile row integrity, and the original movement rules. `make check` is the sole quality gate; no redundant remote CI duplicates it.
+The render geometry is pure and tested independently from the terminal backend. Tests cover auto growth, split-pane dimensions, manual dimensions, minimum-size errors, CLI validation, adaptive pixel numerals from `2` through `2048`, tile row integrity, and the original movement rules. `make check` is the sole quality gate; no redundant remote CI duplicates it.
 
 Maintainers finalize a version with `make release`, which checks the project and synchronizes the branch and Cargo-derived release tag to both mirrors.
 
@@ -96,7 +96,7 @@ Maintainers finalize a version with `make release`, which checks the project and
 
 - `src/cli.rs`: command-line contract and validation.
 - `src/game/layout.rs`: terminal-to-board geometry.
-- `src/game/display.rs`: adaptive plain and block numeral labels.
+- `src/game/display.rs`: adaptive plain and `tui-big-text` pixel numeral labels.
 - `src/game/ui.rs`: terminal lifecycle, events, and rendering.
 - `src/game/logic.rs`: 2048 movement and merge rules.
 - `src/scores.rs`: score persistence and legacy migration.

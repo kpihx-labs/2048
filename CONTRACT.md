@@ -26,7 +26,7 @@ Manual mode requires both dimensions. Unknown options, malformed dimensions, par
 - The board never draws beyond the terminal geometry reported for the current frame.
 - A terminal that cannot hold the selected layout receives an explicit required-versus-actual size message.
 - Resize events trigger a complete redraw using the new geometry.
-- Tile labels use three-row block numerals when both dimensions permit them; otherwise they use a centered plain number.
+- Tile labels use the tested `tui-big-text` 8x8 font: full pixels in tiles of at least eight rows, Unicode quadrants in tiles of at least four rows, and a centered plain number only when the pixel font cannot fit without clipping.
 - Preset and manual layouts remain centered instead of stretching.
 
 ## Input contract

@@ -73,7 +73,10 @@ fn parse_dimension(flag: &str, value: Option<String>, minimum: u16) -> Result<u1
 }
 
 pub fn help() -> &'static str {
-    "2048 1.0.0\n\
+    concat!(
+        "2048 ",
+        env!("CARGO_PKG_VERSION"),
+        "\n\
 A responsive terminal implementation of the 2048 puzzle.\n\n\
 USAGE:\n\
     2048 [OPTIONS]\n\n\
@@ -88,6 +91,7 @@ EXAMPLES:\n\
     2048 --layout compact\n\
     2048 --layout large\n\
     2048 --layout manual --tile-width 18 --tile-height 5"
+    )
 }
 
 #[cfg(test)]

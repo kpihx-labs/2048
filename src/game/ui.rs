@@ -4,7 +4,9 @@ use crate::game::logic::GameLogic;
 use crate::scores::{self, HighScores};
 use crossterm::{
     cursor::MoveTo,
-    event::{self, Event, KeyCode},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEventKind,
+    },
     execute, queue,
     style::{
         Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
@@ -15,6 +17,12 @@ use crossterm::{
     },
 };
 use std::io::{stdout, Stdout, Write};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GameOverAction {
+    Restart,
+    Quit,
+}
 
 pub struct GameUI {
     logic: GameLogic,
@@ -37,12 +45,12 @@ impl GameUI {
 
     pub fn run(&mut self) -> std::io::Result<()> {
         let mut stdout = stdout();
-        execute!(stdout, EnterAlternateScreen)?;
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         enable_raw_mode()?;
 
         let result = self.run_loop(&mut stdout);
         let raw_result = disable_raw_mode();
-        let screen_result = execute!(stdout, LeaveAlternateScreen);
+        let screen_result = execute!(stdout, DisableMouseCapture, LeaveAlternateScreen);
         result.and(raw_result).and(screen_result)
     }
 
@@ -53,10 +61,13 @@ impl GameUI {
             self.draw_board(stdout)?;
 
             if self.logic.game_over {
-                self.show_final_score_screen(stdout)?;
-                self.logic = GameLogic::new();
-                self.show_welcome_screen(stdout)?;
-                continue;
+                match self.show_final_score_screen(stdout)? {
+                    GameOverAction::Restart => {
+                        self.logic = GameLogic::new();
+                        continue;
+                    }
+                    GameOverAction::Quit => break,
+                }
             }
 
             match event::read()? {
@@ -151,7 +162,7 @@ impl GameUI {
         };
 
         self.draw_header(stdout, layout)?;
-        self.draw_grid(stdout, layout)?;
+        self.draw_grid(stdout, layout, &self.logic.board)?;
         self.draw_footer(stdout, layout)?;
         stdout.flush()
     }
@@ -194,7 +205,12 @@ impl GameUI {
         Ok(())
     }
 
-    fn draw_grid(&self, stdout: &mut Stdout, layout: BoardLayout) -> std::io::Result<()> {
+    fn draw_grid(
+        &self,
+        stdout: &mut Stdout,
+        layout: BoardLayout,
+        board: &[[u16; 4]; 4],
+    ) -> std::io::Result<()> {
         for row in 0..=BOARD_SIZE {
             self.draw_border(stdout, layout, row)?;
             if row == BOARD_SIZE {
@@ -204,7 +220,14 @@ impl GameUI {
                 let y = layout.board_y + row * (layout.tile_height + 1) + inner_y + 1;
                 queue!(stdout, MoveTo(layout.board_x, y), Print("│"))?;
                 for column in 0..BOARD_SIZE {
-                    self.draw_tile_row(stdout, layout, row as usize, column as usize, inner_y, y)?;
+                    self.draw_tile_row(
+                        stdout,
+                        layout,
+                        board,
+                        row as usize,
+                        column as usize,
+                        inner_y,
+                    )?;
                     queue!(stdout, Print("│"))?;
                 }
             }
@@ -250,12 +273,12 @@ impl GameUI {
         &self,
         stdout: &mut Stdout,
         layout: BoardLayout,
+        board: &[[u16; 4]; 4],
         row: usize,
         column: usize,
         inner_y: u16,
-        y: u16,
     ) -> std::io::Result<()> {
-        let value = self.logic.board[row][column];
+        let value = board[row][column];
         let (foreground, background) = tile_colors(value);
         let labels = if value == 0 {
             Vec::new()
@@ -264,6 +287,7 @@ impl GameUI {
         };
         let content = tile_row_content(layout.tile_width, inner_y, &labels);
         let x = layout.board_x + 1 + column as u16 * (layout.tile_width + 1);
+        let y = layout.board_y + row as u16 * (layout.tile_height + 1) + inner_y + 1;
 
         queue!(
             stdout,
@@ -328,70 +352,292 @@ impl GameUI {
         Ok(())
     }
 
-    fn show_final_score_screen(&mut self, stdout: &mut Stdout) -> std::io::Result<()> {
+    fn show_final_score_screen(&mut self, stdout: &mut Stdout) -> std::io::Result<GameOverAction> {
         if scores::is_new_high_score(&self.high_scores, self.logic.score) {
             scores::add_high_score(&mut self.high_scores, self.logic.score, &self.logic.board);
         }
-        self.show_high_scores(stdout)
+
+        loop {
+            self.draw_board(stdout)?;
+            let (width, height) = terminal::size()?;
+            if let Ok(layout) = BoardLayout::calculate(width, height, self.layout_options) {
+                self.draw_game_over_overlay(stdout, layout)?;
+            }
+            stdout.flush()?;
+
+            match event::read()? {
+                Event::Resize(_, _) => continue,
+                Event::Key(key) => match key.code {
+                    KeyCode::Char('r') | KeyCode::Enter => return Ok(GameOverAction::Restart),
+                    KeyCode::Char('h') => self.show_high_scores(stdout)?,
+                    KeyCode::Char('q') | KeyCode::Esc => return Ok(GameOverAction::Quit),
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+    }
+
+    fn draw_game_over_overlay(
+        &self,
+        stdout: &mut Stdout,
+        layout: BoardLayout,
+    ) -> std::io::Result<()> {
+        let width = layout.board_width.saturating_sub(2).min(48);
+        if width < 20 || layout.board_height < 7 {
+            return Ok(());
+        }
+        let height = 7;
+        let x = layout.board_x + layout.board_width.saturating_sub(width) / 2;
+        let y = layout.board_y + layout.board_height.saturating_sub(height) / 2;
+        let inner = width.saturating_sub(2) as usize;
+        let lines = [
+            center_text("GAME OVER", inner),
+            center_text(&format!("SCORE {}", self.logic.score), inner),
+            center_text("R / Enter  restart", inner),
+            center_text("H          history", inner),
+            center_text("Q / Esc    quit", inner),
+        ];
+
+        queue!(
+            stdout,
+            SetBackgroundColor(Color::DarkRed),
+            SetForegroundColor(Color::White),
+            SetAttribute(Attribute::Bold),
+            MoveTo(x, y),
+            Print(format!("┌{}┐", "─".repeat(inner)))
+        )?;
+        for (row, line) in lines.iter().enumerate() {
+            queue!(
+                stdout,
+                MoveTo(x, y + row as u16 + 1),
+                Print(format!("│{}│", line))
+            )?;
+        }
+        queue!(
+            stdout,
+            MoveTo(x, y + height - 1),
+            Print(format!("└{}┘", "─".repeat(inner))),
+            SetAttribute(Attribute::Reset),
+            ResetColor
+        )?;
+        Ok(())
     }
 
     fn show_high_scores(&self, stdout: &mut Stdout) -> std::io::Result<()> {
+        let mut selected = 0_usize;
+        let mut offset = 0_usize;
+
         loop {
             let (width, height) = terminal::size()?;
             queue!(stdout, Clear(ClearType::All))?;
-            let table_width = 48_u16.min(width);
+            let table_width = 60_u16.min(width);
             let x = width.saturating_sub(table_width) / 2;
-            let mut y = height.saturating_sub(self.high_scores.scores.len() as u16 + 5) / 2;
+            let title_y = 1_u16.min(height.saturating_sub(1));
+            let list_y = title_y + 2;
+            let visible_rows = height.saturating_sub(6).max(1) as usize;
+            let (start, end) = score_window(
+                self.high_scores.scores.len(),
+                selected,
+                visible_rows,
+                &mut offset,
+            );
             queue!(
                 stdout,
-                MoveTo(x, y),
+                MoveTo(x, title_y),
                 SetAttribute(Attribute::Bold),
                 SetForegroundColor(Color::Yellow),
-                Print("HIGH SCORES"),
+                Print("PERFORMANCE HISTORY"),
                 SetAttribute(Attribute::Reset)
             )?;
-            y += 2;
 
             if self.high_scores.scores.is_empty() {
-                queue!(stdout, MoveTo(x, y), Print("No scores yet."))?;
-                y += 1;
+                queue!(
+                    stdout,
+                    MoveTo(x, list_y),
+                    Print("No completed ranked run yet.")
+                )?;
             } else {
-                for (index, entry) in self.high_scores.scores.iter().enumerate() {
-                    queue!(
-                        stdout,
-                        MoveTo(x, y),
-                        SetForegroundColor(if index < 3 {
-                            Color::Yellow
-                        } else {
-                            Color::White
-                        }),
-                        Print(format!(
+                for (row, index) in (start..end).enumerate() {
+                    let entry = &self.high_scores.scores[index];
+                    let line = truncate(
+                        &format!(
                             "{:>2}. {:>8} pts  tile {:>5}  {}",
                             index + 1,
                             entry.score,
                             entry.highest_tile,
                             entry.date
-                        )),
+                        ),
+                        table_width as usize,
+                    );
+                    queue!(
+                        stdout,
+                        MoveTo(x, list_y + row as u16),
+                        SetBackgroundColor(if index == selected {
+                            Color::DarkYellow
+                        } else {
+                            Color::Reset
+                        }),
+                        SetForegroundColor(if index == selected {
+                            Color::Black
+                        } else if index < 3 {
+                            Color::Yellow
+                        } else {
+                            Color::White
+                        }),
+                        Print(format!("{line:<width$}", width = table_width as usize)),
                         ResetColor
                     )?;
-                    y += 1;
                 }
             }
             queue!(
                 stdout,
-                MoveTo(x, y + 1),
+                MoveTo(x, height.saturating_sub(2)),
                 SetForegroundColor(Color::DarkGrey),
-                Print("Press any key to continue"),
+                Print(truncate(
+                    "↑↓ / wheel select   Enter / click snapshot   Esc back",
+                    table_width as usize
+                )),
                 ResetColor
             )?;
             stdout.flush()?;
 
             match event::read()? {
                 Event::Resize(_, _) => continue,
-                Event::Key(_) => return Ok(()),
+                Event::Key(key) => match key.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        selected = selected.saturating_sub(1);
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        selected =
+                            (selected + 1).min(self.high_scores.scores.len().saturating_sub(1));
+                    }
+                    KeyCode::PageUp => selected = selected.saturating_sub(visible_rows),
+                    KeyCode::PageDown => {
+                        selected = (selected + visible_rows)
+                            .min(self.high_scores.scores.len().saturating_sub(1));
+                    }
+                    KeyCode::Enter if !self.high_scores.scores.is_empty() => {
+                        self.show_score_snapshot(stdout, selected)?;
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('h') => return Ok(()),
+                    _ => {}
+                },
+                Event::Mouse(mouse) => match mouse.kind {
+                    MouseEventKind::ScrollUp => selected = selected.saturating_sub(1),
+                    MouseEventKind::ScrollDown => {
+                        selected =
+                            (selected + 1).min(self.high_scores.scores.len().saturating_sub(1));
+                    }
+                    MouseEventKind::Down(MouseButton::Left)
+                        if mouse.column >= x
+                            && mouse.column < x + table_width
+                            && mouse.row >= list_y
+                            && mouse.row < list_y + (end - start) as u16 =>
+                    {
+                        selected = start + (mouse.row - list_y) as usize;
+                        self.show_score_snapshot(stdout, selected)?;
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
         }
+    }
+
+    fn show_score_snapshot(&self, stdout: &mut Stdout, start: usize) -> std::io::Result<()> {
+        let mut selected = start;
+        loop {
+            self.draw_score_snapshot(stdout, selected)?;
+            match event::read()? {
+                Event::Resize(_, _) => continue,
+                Event::Key(key) => match key.code {
+                    KeyCode::Left | KeyCode::Up | KeyCode::Char('k') => {
+                        selected = selected.saturating_sub(1);
+                    }
+                    KeyCode::Right | KeyCode::Down | KeyCode::Char('j') => {
+                        selected =
+                            (selected + 1).min(self.high_scores.scores.len().saturating_sub(1));
+                    }
+                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => return Ok(()),
+                    _ => {}
+                },
+                Event::Mouse(mouse) => match mouse.kind {
+                    MouseEventKind::ScrollUp => selected = selected.saturating_sub(1),
+                    MouseEventKind::ScrollDown => {
+                        selected =
+                            (selected + 1).min(self.high_scores.scores.len().saturating_sub(1));
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+    }
+
+    fn draw_score_snapshot(&self, stdout: &mut Stdout, selected: usize) -> std::io::Result<()> {
+        let (width, height) = terminal::size()?;
+        queue!(stdout, Clear(ClearType::All))?;
+        let Some(entry) = self.high_scores.scores.get(selected) else {
+            return stdout.flush();
+        };
+        let layout = match BoardLayout::calculate(width, height, self.layout_options) {
+            Ok(layout) => layout,
+            Err(error) => {
+                self.draw_too_small(stdout, error)?;
+                return stdout.flush();
+            }
+        };
+
+        let title = truncate(
+            &format!(
+                "RUN {}/{}  |  SCORE {}  |  TILE {}  |  {}",
+                selected + 1,
+                self.high_scores.scores.len(),
+                entry.score,
+                entry.highest_tile,
+                entry.date
+            ),
+            layout.board_width as usize,
+        );
+        let title_x = layout.board_x + layout.board_width.saturating_sub(title.len() as u16) / 2;
+        let controls = truncate(
+            "←↑ previous   →↓ next   wheel browse   Enter/Esc back",
+            layout.board_width as usize,
+        );
+        let controls_x =
+            layout.board_x + layout.board_width.saturating_sub(controls.len() as u16) / 2;
+        queue!(
+            stdout,
+            MoveTo(title_x, layout.content_y),
+            SetAttribute(Attribute::Bold),
+            SetForegroundColor(Color::Yellow),
+            Print(title),
+            SetAttribute(Attribute::Reset),
+            MoveTo(controls_x, layout.content_y + 1),
+            SetForegroundColor(Color::Cyan),
+            Print(controls),
+            MoveTo(layout.board_x, layout.content_y + 2),
+            Print("─".repeat(layout.board_width as usize)),
+            ResetColor
+        )?;
+        self.draw_grid(stdout, layout, &entry.board)?;
+
+        let footer = if entry.board.iter().flatten().all(|value| *value == 0) {
+            "Legacy score: no final-board snapshot was stored."
+        } else {
+            "Responsive reconstruction of the final frozen board."
+        };
+        let footer = truncate(footer, layout.board_width as usize);
+        let footer_x = layout.board_x + layout.board_width.saturating_sub(footer.len() as u16) / 2;
+        queue!(
+            stdout,
+            MoveTo(footer_x, layout.footer_y + 1),
+            SetForegroundColor(Color::DarkGrey),
+            Print(footer),
+            ResetColor
+        )?;
+        stdout.flush()
     }
 }
 
@@ -517,6 +763,34 @@ fn tile_colors(value: u16) -> (Color, Color) {
     }
 }
 
+fn center_text(value: &str, width: usize) -> String {
+    let value = truncate(value, width);
+    let value_width = value.chars().count();
+    let left = width.saturating_sub(value_width) / 2;
+    let right = width.saturating_sub(value_width + left);
+    format!("{}{}{}", " ".repeat(left), value, " ".repeat(right))
+}
+
+fn score_window(
+    total: usize,
+    selected: usize,
+    visible: usize,
+    offset: &mut usize,
+) -> (usize, usize) {
+    if total == 0 {
+        *offset = 0;
+        return (0, 0);
+    }
+    let visible = visible.max(1);
+    if selected < *offset {
+        *offset = selected;
+    } else if selected >= *offset + visible {
+        *offset = selected + 1 - visible;
+    }
+    *offset = (*offset).min(total.saturating_sub(visible));
+    (*offset, (*offset + visible).min(total))
+}
+
 fn truncate(value: &str, max_width: usize) -> String {
     value.chars().take(max_width).collect()
 }
@@ -535,5 +809,21 @@ mod tests {
         let row = tile_row_content(10, 1, &labels);
         assert_eq!(row.chars().count(), 10);
         assert_eq!(row, "  2048    ");
+    }
+
+    #[test]
+    fn centers_overlay_text_without_changing_width() {
+        let line = center_text("GAME OVER", 20);
+        assert_eq!(line.chars().count(), 20);
+        assert_eq!(line.trim(), "GAME OVER");
+    }
+
+    #[test]
+    fn score_window_follows_selection_and_remains_bounded() {
+        let mut offset = 0;
+        assert_eq!(score_window(10, 0, 3, &mut offset), (0, 3));
+        assert_eq!(score_window(10, 5, 3, &mut offset), (3, 6));
+        assert_eq!(score_window(10, 9, 3, &mut offset), (7, 10));
+        assert_eq!(score_window(10, 1, 3, &mut offset), (1, 4));
     }
 }

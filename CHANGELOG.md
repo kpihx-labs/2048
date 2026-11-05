@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-11-05
+
+- Freeze the final board at game over and draw a visible `GAME OVER` overlay instead of clearing the result immediately.
+- Add explicit restart, history, and quit actions on the frozen result.
+- Persist the final 4x4 board with each ranked performance while keeping legacy score files readable.
+- Make performance history selectable with arrows, page keys, mouse wheel, and direct row clicks.
+- Reconstruct each stored final board responsively and browse snapshots without leaving history.
+- Enable mouse capture only for the game session and restore terminal state on exit.
+
 ## 1.0.1 - 2026-11-05
 
 - Replace the hand-authored three-row digit matrices with the maintained `tui-big-text` renderer and its tested 8x8 font.

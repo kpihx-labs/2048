@@ -36,12 +36,16 @@ Manual mode requires both dimensions. Unknown options, malformed dimensions, par
 - `R` starts a new board immediately.
 - `Q` and `Esc` leave the game.
 - A new tile appears only after a move changes the board.
+- Game over freezes the final board and overlays the result until an explicit restart, history, or quit action.
+- Performance history supports keyboard selection, page scrolling, mouse-wheel scrolling, direct row clicks, and snapshot browsing.
 
 ## State contract
 
 - The ten highest scores are persisted as JSON.
+- Every new ranked score stores the exact final 4x4 board for responsive later reconstruction.
 - The canonical path is `$XDG_DATA_HOME/2048/high-scores.json`, falling back to `$HOME/.local/share/2048/high-scores.json` through the platform data-directory API.
 - Legacy `$HOME/.2048_high_scores.json` data is loaded and copied to the canonical path when no canonical file exists.
+- Legacy score entries without a board deserialize with an empty snapshot and remain readable.
 - Corrupt or unreadable score content does not prevent the game from starting; it yields an empty in-memory score table.
 
 ## Terminal lifecycle

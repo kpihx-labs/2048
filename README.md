@@ -9,6 +9,8 @@ This repository is a GPLv3 fork of [Ken VanDine's terminal-2048](https://github.
 - Responsive layout fills the current terminal or tmux pane.
 - Live redraw on terminal resize.
 - High-quality adaptive pixel numerals powered by `tui-big-text` and its tested 8x8 font.
+- Frozen game-over board with an explicit overlay and restart/history/quit choices.
+- Keyboard and mouse performance history with responsive final-board snapshots.
 - Five layout modes: `auto`, `compact`, `balanced`, `large`, and `manual`.
 - Explicit manual tile width and height.
 - Native `2048` binary, independent of Snap.
@@ -71,6 +73,10 @@ Run `2048 --help` for the complete CLI contract.
 | `R` | Restart the board |
 | `Q` or `Esc` | Quit |
 
+At game over, the final position remains visible under a `GAME OVER` overlay. Press `R` or `Enter` to restart, `H` to inspect performance history, or `Q` to leave.
+
+Inside history, use arrows, `j`/`k`, Page Up/Down, or the mouse wheel to move. Press `Enter` or click a performance to reconstruct its final board; use arrows or the wheel to browse neighboring snapshots.
+
 ## Scores
 
 Scores live at:
@@ -79,7 +85,7 @@ Scores live at:
 $XDG_DATA_HOME/2048/high-scores.json
 ```
 
-When `XDG_DATA_HOME` is unset, the standard location is `$HOME/.local/share/2048/high-scores.json`. Existing `$HOME/.2048_high_scores.json` data is read and migrated without deleting the legacy file.
+When `XDG_DATA_HOME` is unset, the standard location is `$HOME/.local/share/2048/high-scores.json`. Existing `$HOME/.2048_high_scores.json` data is read and migrated without deleting the legacy file. New entries include the final board; older entries remain visible and are explicitly marked when no historical snapshot exists.
 
 ## Development
 

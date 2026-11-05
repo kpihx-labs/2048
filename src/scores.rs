@@ -10,6 +10,8 @@ pub struct ScoreEntry {
     pub score: u32,
     pub date: String,
     pub highest_tile: u16,
+    #[serde(default)]
+    pub board: [[u16; 4]; 4],
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -77,6 +79,7 @@ pub fn add_high_score(high_scores: &mut HighScores, score: u32, board: &[[u16; 4
         score,
         date: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         highest_tile,
+        board: *board,
     };
 
     high_scores.scores.push(new_score);
@@ -90,4 +93,31 @@ pub fn is_new_high_score(high_scores: &HighScores, score: u32) -> bool {
         return true;
     }
     score > high_scores.scores.last().map_or(0, |s| s.score)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_entries_without_board_still_deserialize() {
+        let entry: ScoreEntry =
+            serde_json::from_str(r#"{"score":128,"date":"2026-11-05 12:00:00","highest_tile":64}"#)
+                .expect("legacy score entry");
+        assert_eq!(entry.board, [[0; 4]; 4]);
+    }
+
+    #[test]
+    fn score_entry_keeps_the_final_board_snapshot() {
+        let board = [[2, 4, 8, 16], [32, 64, 128, 256], [0; 4], [0; 4]];
+        let entry = ScoreEntry {
+            score: 2048,
+            date: "2026-11-05 12:00:00".to_string(),
+            highest_tile: 256,
+            board,
+        };
+        let encoded = serde_json::to_string(&entry).expect("serialize score entry");
+        let decoded: ScoreEntry = serde_json::from_str(&encoded).expect("deserialize score entry");
+        assert_eq!(decoded.board, board);
+    }
 }

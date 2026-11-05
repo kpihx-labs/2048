@@ -2,7 +2,6 @@
 
 ## Active
 
-- Add optional mouse and touch input only if it remains transparent over SSH and tmux.
 - Consider theme selection after the responsive layout has accumulated real usage feedback.
 
 ## Non-goals for 1.0

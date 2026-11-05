@@ -90,6 +90,8 @@ make check
 
 The render geometry is pure and tested independently from the terminal backend. Tests cover auto growth, split-pane dimensions, manual dimensions, minimum-size errors, CLI validation, large numerals, tile row integrity, and the original movement rules. `make check` is the sole quality gate; no redundant remote CI duplicates it.
 
+Maintainers finalize a version with `make release`, which checks the project and synchronizes the branch and Cargo-derived release tag to both mirrors.
+
 ## Architecture
 
 - `src/cli.rs`: command-line contract and validation.

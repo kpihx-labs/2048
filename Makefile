@@ -1,7 +1,7 @@
 SHELL := /bin/zsh
 .DEFAULT_GOAL := help
 
-.PHONY: help fmt fmt-check lint test build smoke check install uninstall push status log
+.PHONY: help fmt fmt-check lint test build smoke check install uninstall push tag push-tags release status log
 
 help:  ## Show available targets
 	@perl -ne 'print "  $$1\t$$2\n" if /^([a-zA-Z0-9_-]+):.*?##\s*(.*)$$/' $(MAKEFILE_LIST)
@@ -36,6 +36,15 @@ uninstall:  ## Remove the Cargo-installed binary
 push:  ## Push the current branch to GitHub and GitLab
 	@branch="$$(git branch --show-current)"; \
 	for remote in github gitlab; do git push "$$remote" "$$branch"; done
+
+tag: check  ## Create the annotated tag matching Cargo.toml
+	@version="$$(perl -ne 'print $$1 if /^version = "([^"]+)"/' Cargo.toml)"; \
+	git tag -a "v$$version" -m "2048 $$version"
+
+push-tags:  ## Push release tags to GitHub and GitLab
+	@for remote in github gitlab; do git push "$$remote" --tags; done
+
+release: check push tag push-tags  ## Check, push, tag, and publish the release refs
 
 status:  ## Show repository and remote status
 	git status --short --branch
